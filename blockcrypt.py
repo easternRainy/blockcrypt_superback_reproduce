@@ -372,6 +372,17 @@ class EncryptedBlock:
     def get_salt(self):
         return self.salt
 
+class EncryptedBlockContainer:
+    # kdf and parameters 256 bytes | encrypted block (size varies)
+    def __init__(self, kdf: KDF, encrypted_block: EncryptedBlock):
+        self.kdf = kdf
+        self.encrypted_block = encrypted_block
+
+    def patch_kdf_metadata(self):
+        kdf_info = KDF.export()
+        padded_kdf_info = pad(kdf_info, CONTAINER_SIZE)
+        return padded_kdf_info + self.encrypted_block
+
 
 def parse_compact_encrypted_block(compact_encrypted_block):
     p1 = 0

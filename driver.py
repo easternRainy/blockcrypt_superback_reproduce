@@ -1,6 +1,30 @@
 from blockcrypt import *
 from blockcrypt_test import *
 import qrcode
+import argparse
+
+"""
+python3 driver.py encrypt \
+--kdf "argon2id" \
+--time_cost 5 \
+--memory_cost 7 \
+--parallelism 4 \
+--message "message 1" \
+--passphrase "passphrase 1" \
+--mesasge "message 2" \
+--auto_eff 5 \
+--message "message 3" \
+--auto eff 7 \
+--threshold 3 \
+--total_split 9
+
+python3 driver.py decrypt \
+--passphrase "passphrase 1"
+--qrcode "path/to/qr1.png"
+--qrcode "path/to/qr2.png"
+--qrcode "path/to/qr3.png"
+
+"""
 
 def main():
     secrets = []
