@@ -29,7 +29,7 @@ def test_encrypt_decrypt_message():
     assert messages[0] == decrypted_message
 
 def test_encrypt_decrypt_header():
-    header = Header(100, 200)
+    header = Header(10000000000000, 200)
     encrypted_header = header.encrypt(keys[0], referenceIv)
     decrypted_header = encrypted_header.decrypt(keys[0], referenceIv)
     assert header == decrypted_header

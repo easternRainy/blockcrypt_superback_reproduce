@@ -89,8 +89,7 @@ class Header:
 
     def encrypt(self, key, iv):
         header_cipher = AES.new(key, AES.MODE_CBC, iv=iv)
-        header = self.__str__()
-        padded_header = pad(header.encode(), AES.block_size)
+        padded_header = self.get_data()
         header_enciphered = header_cipher.encrypt(padded_header)
 
         return EncryptedHeader(header_enciphered)
@@ -102,7 +101,7 @@ class Header:
         return len(self.__str__())
     
     def get_data(self):
-        return self.__str__()
+        return self.data_start.to_bytes(INT_PAD_SIZE, byteorder="big") + self.data_len.to_bytes(INT_PAD_SIZE, byteorder="big")
 
     def __eq__(self, other):
         if not isinstance(other, Header):
@@ -119,12 +118,9 @@ class EncryptedHeader:
         try:
             header_cipher = AES.new(key, AES.MODE_CBC, iv=iv)
             header_decrypted = header_cipher.decrypt(self.header_enciphered)
+            data_start_bytes, data_end_bytes = header_decrypted[:INT_PAD_SIZE], header_decrypted[INT_PAD_SIZE:2*INT_PAD_SIZE]
+            data_start, data_len = int.from_bytes(data_start_bytes, byteorder="big"), int.from_bytes(data_end_bytes, byteorder="big")
 
-            plaintext = header_decrypted.decode()
-
-            data_start, data_len = plaintext.split(BLOCK_HEADER_SPLIT)
-            data_start = int(data_start)
-            data_len = int(data_len)
             return Header(data_start, data_len)
         except:
             return Header(-1, -1)
@@ -137,7 +133,6 @@ class EncryptedHeader:
 
     def get_encrypted_data(self):
         return self.header_enciphered
-
 
 
 class Secret:
@@ -160,11 +155,7 @@ class Secret:
 
 
 class Block:
-    def __init__(self, secrets: list[Secret], kdf, headers_len=64, data_len=None, salt=None, iv=None):
-        assert all([secret.is_valid() for secret in secrets])
-        assert headers_len and headers_len % 8 == 0
-        assert not data_len or (data_len and data_len % 8 == 0)
-        
+    def __init__(self, secrets: list[Secret], kdf, headers_len=None, data_len=None, salt=None, iv=None):
         self.secrets = secrets
         self.kdf = kdf
         self.headers_len = headers_len
@@ -177,6 +168,59 @@ class Block:
         self.iv = iv
 
         self.keys = []
+
+    def is_valid(self):
+        if not self.secrets:
+            raise Exception(f"There is no secret.")
+
+        # All secrets are valid.
+        for secret in self.secrets:
+            if not secret.is_valid():
+                raise Exception(f"The secret {secret}" is not valid)
+
+        # Each header is in the format of start_position (8 bytes) | length (8 bytes).
+        # The maximum of start_position is 2^64-1, so is maximum length.
+        # If the first header is (0, 2^64-1) then there should be no next header.
+        # If the first n headers are (0, 1), (1, 1), (2, 1),..., (2^64-1, 1)
+        # So the total length of all secrets should not exceed 2^64-1.
+        # For safety concerns, we set it to 2^32, and set the length of each message should not exceed
+        # (2^32) / len(secrets)
+        max_msg_len = MAX_DATA_LEN // len(self.secrets)
+        total_msg_len = 0
+        for secret in self.secrets:
+            msg_len = len(secret.message)
+            if msg_len >= max_msg_len:
+                raise Exception(f"The secret {secret} is too long")
+            total_msg_len += msg_len
+
+        # If the user set a limit of the header size, make sure it can be divided by 8
+        # and can hold the number of secrets
+        if self.headers_len:
+            if self.headers_len % 8 != 0:
+                raise Exception(f"The length of headers should be divided by 8")
+
+            max_headers_n = self.headers_len // HEADER_SIZE
+            if len(self.secrets) > max_headers_n:
+                raise Exception(f"Too many secrets for header length {self.headers_len}")
+        else:
+            self.headers_len = len(self.secrets) * HEADER_SIZE
+
+        # If the user set a limit of data size, make sure it can be divided by 8
+        # and can hold the secrets
+        if self.data_len:
+            if self.data_len % 8 != 0:
+                raise Exception(f"The length of data should be divided by 8")
+            if total_msg_len > self.data_len:
+                raise Exception(f"Too long total secret length for data length {self.data_len}")
+        else:
+            # data length can be changed during encryption, set a default value
+            self.data_len = total_msg_len + len(self.secrets) * (GCM_IV_SIZE + AUTH_TAG_SIZE)
+            self.data_len = int(self.data_len * 1.5)
+            self.data_len = (1 + self.data_len // 8) * 8
+            if self.data_len >= MAX_DATA_LEN:
+                raise Exception(f"Total secret length is too long.")
+
+        return True
 
     def __str__(self):
         result = "------Block start------\n"
@@ -193,10 +237,12 @@ class Block:
         return all([s1.message == s2.message] for s1, s2 in zip(self.secrets, other.secrets))
 
     def _derive_keys(self):
-        
         self.keys = [secret.passphrase.derive_key(self.kdf, self.salt) for secret in self.secrets]
 
     def encrypt(self):
+        if not self.is_valid():
+            raise Exception("Block is invalid")
+
         # step 1: dervie keys 
         if not self.keys:
             self._derive_keys()
@@ -221,7 +267,7 @@ class Block:
         # step 5: encrypt headers
         headers_buffers = [header.encrypt(key, self.iv).get_encrypted_data() for key, header in zip(self.keys, headers)]
 
-        # step 6: add paddings
+        # step 6: add paddings.
         headers_final = self._append_padding(headers_buffers, self.headers_len)
         data_final = self._append_padding(data_buffers, self.data_len)
 

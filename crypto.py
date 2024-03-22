@@ -13,7 +13,10 @@ CBC_IV_SIZE = 16 # bytes
 KEY_SIZE = 16 # bytes
 INT_PAD_SIZE = 16
 BLOCK_HEADER_SPLIT = ":"
+HEADER_SIZE = 16
 ARGON_SPLIT = "$"
+MAX_DATA_LEN = 2**32
+INT_PAD_SIZE = 8 # bytes
 
 def secure_kdf(passphrase, salt):
     # ph = PasswordHasher(time_cost=5, memory_cost=2**20)

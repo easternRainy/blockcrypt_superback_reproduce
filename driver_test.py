@@ -59,14 +59,12 @@ def test_qr_code_workflow_secure_kdf():
     selected_idx = [2, 4, 3]
     qr_codes_data = [read_qr_code(f"assets/qr_code_{i}.png") for i in selected_idx]
 
-    # print(qr_codes_data[0] == backups[2])
+    assert qr_codes_data[0] == backups[2]
     recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
 
     secure_keys = encrypted_block.derive_keys(passphrases, secure_kdf)
-    secure_keys2 = encrypted_block.derive_keys(passphrases, secure_kdf)
-    # print(keys[0] == block.keys[0])
-    decrypted_block = encrypted_block.decrypt(block.keys)
+    decrypted_block = encrypted_block.decrypt(secure_keys)
 
     assert block == decrypted_block
 
