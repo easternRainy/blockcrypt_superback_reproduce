@@ -321,6 +321,11 @@ class EncryptedBlock:
 
         return decrypted_block
 
+    def decrypt_for_user(self, passphrase:Passphrase):
+        n = len(self.headers) // AES.block_size
+        passphrases = [passphrase] * n
+        return self.decrypt_and_show_message_only(passphrases)
+
     def decrypt_and_show_message_only(self, passphrases):
         decrypted_block = self.decrypt(passphrases)
         return decrypted_block.secrets[0].get_message() if decrypted_block.secrets else "Password Incorrect"

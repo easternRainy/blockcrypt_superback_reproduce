@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
     parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
     parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
-    parser.add_argument("--passphrase", help="Passphrase for encryption or decryption.")
+    parser.add_argument("--passphrase", action="append", help="Passphrase for encryption or decryption.")
     parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
     parser.add_argument("--threshold", type=int, help="Threshold for operation.")
     parser.add_argument("--total_split", type=int, help="Total number of splits.")
@@ -58,7 +58,22 @@ def main():
             generate_qr_code(backup, save_path=f"assets/qr_code_{i}.png")
 
         print("QR Code generated")
-            
+
+    if args.command == "decrypt":
+        kdf = secure_kdf
+        passphrases = [Passphrase(p) for p in args.passphrase]
+        
+        shamir_recover = ShamirBackup(args.threshold, args.total_split)
+
+        
+        qr_codes_data = [read_qr_code(p) for p in args.qrcode]
+
+        recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
+        encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
+        encrypted_block.set_kdf(secure_kdf)
+        decrypted_message = encrypted_block.decrypt_for_user(passphrases[0])
+        print(decrypted_message)
+                
 
 
 
