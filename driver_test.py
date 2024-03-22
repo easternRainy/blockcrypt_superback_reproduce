@@ -1,6 +1,7 @@
 from blockcrypt import *
 from shamir_backup import *
 from test_utils import *
+from blockcrypt_test import messages, passphrases, secrets, keys
 from qr_code import *
 from crypto import *
 
@@ -16,7 +17,7 @@ def test_basic_workflow():
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
     decrypted_block = encrypted_block.decrypt(keys)
 
-    print(decrypted_block)
+    assert block == decrypted_block
 
 def test_qr_code_workflow():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
@@ -29,18 +30,17 @@ def test_qr_code_workflow():
         generate_qr_code(backup, save_path=f"assets/qr_code_{i}.png")
 
     print("QR Code generated")
-    input()
     shamir_recover = ShamirBackup(3, 9)
 
     selected_idx = [2, 4, 3]
     qr_codes_data = [read_qr_code(f"assets/qr_code_{i}.png") for i in selected_idx]
 
-    # print(qr_codes_data[0] == backups[2])
+    assert qr_codes_data[0] == backups[2]
     recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
     decrypted_block = encrypted_block.decrypt(keys)
 
-    print(decrypted_block)
+    assert block == decrypted_block
 
 def test_qr_code_workflow_secure_kdf():
     block = Block(secrets, secure_kdf, 64, 1024)
@@ -54,7 +54,6 @@ def test_qr_code_workflow_secure_kdf():
         generate_qr_code(backup, save_path=f"assets/qr_code_{i}.png")
 
     print("QR Code generated")
-    input()
     shamir_recover = ShamirBackup(3, 9)
 
     selected_idx = [2, 4, 3]
@@ -69,10 +68,11 @@ def test_qr_code_workflow_secure_kdf():
     # print(keys[0] == block.keys[0])
     decrypted_block = encrypted_block.decrypt(block.keys)
 
-    print(decrypted_block)
+    assert block == decrypted_block
+
 
 
 if __name__ == "__main__":
-    # test_basic_workflow()
-    # test_qr_code_workflow()
+    test_basic_workflow()
+    test_qr_code_workflow()
     test_qr_code_workflow_secure_kdf()

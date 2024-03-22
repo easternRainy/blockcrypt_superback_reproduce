@@ -8,9 +8,7 @@ def test_shamir_backup_basic():
 
     shamir_recover = ShamirBackup(5, 9)
     data_recovered = shamir_recover.recover(backups[1:6])
-
-    print(data)
-    print(data_recovered)
+    assert data == data_recovered
 
 if __name__ == "__main__":
     test_shamir_backup_basic()

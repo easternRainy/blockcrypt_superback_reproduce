@@ -186,6 +186,12 @@ class Block:
         result += "-----Block end--------\n"
         return result
 
+    def __eq__(self, other):
+        if not isinstance(other, Block):
+            return False
+        
+        return all([s1.message == s2.message] for s1, s2 in zip(self.secrets, other.secrets))
+
     def _derive_keys(self):
         
         self.keys = [secret.passphrase.derive_key(self.kdf, self.salt) for secret in self.secrets]

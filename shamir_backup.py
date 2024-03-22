@@ -41,7 +41,7 @@ class ShamirBackup:
 
         # 16, 32
         share_start = INT_PAD_SIZE
-        share_end = stare_start + KEY_SIZE
+        share_end = share_start + KEY_SIZE
         shares = [backup[INT_PAD_SIZE:share_end] for backup in backups]
         key_shares = [(idx, share) for idx, share in zip(idxs, shares)]
         restored_key = Shamir.combine(key_shares)

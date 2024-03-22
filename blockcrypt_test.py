@@ -39,9 +39,8 @@ def test_encrypt_decrypt_block():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
     decrypted_block = encrypted_block.decrypt(keys)
-    for s1, s2 in zip(block.secrets, decrypted_block.secrets):
-        assert s1.message == s2.message
-    
+    assert block == decrypted_block
+
 
 def test_decrypt_block_one_valid_passphrase():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
@@ -85,8 +84,8 @@ def test_encrypt_decrypt_block_secure_kdf():
     block = Block(secrets, secure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
     decrypted_block = encrypted_block.decrypt(keys)
-    for s1, s2 in zip(block.secrets, decrypted_block.secrets):
-        assert s1.message == s2.message
+    assert block == decrypted_block
+
 
 
 if __name__ == "__main__":
