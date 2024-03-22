@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
     parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
     parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
-    parser.add_argument("--passphrase", action="append", help="Passphrase for encryption or decryption.")
+    parser.add_argument("--passphrase-flag", action="append", choices=["userinput", "eff"], help="Passphrase for encryption or decryption.")
     parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
     parser.add_argument("--threshold", type=int, help="Threshold for operation.")
     parser.add_argument("--total_split", type=int, help="Total number of splits.")
@@ -44,6 +44,8 @@ def main():
     args = parser.parse_args()
 
     if args.command == "encrypt":
+        print(args.passphrase_flag)
+        input()
         kdf = secure_kdf
         assert len(args.message) == len(args.passphrase)
         messages = [Message(m) for m in args.message]
@@ -63,9 +65,9 @@ def main():
         kdf = secure_kdf
         passphrases = [Passphrase(p) for p in args.passphrase]
         
-        shamir_recover = ShamirBackup(args.threshold, args.total_split)
+        n_qr = len(args.qrcode)
+        shamir_recover = ShamirBackup(n_qr, n_qr)
 
-        
         qr_codes_data = [read_qr_code(p) for p in args.qrcode]
 
         recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
