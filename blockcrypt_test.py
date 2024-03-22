@@ -2,6 +2,7 @@ from blockcrypt import *
 import hmac
 import hashlib
 import base64
+import pytest
 
 from crypto import *
 from test_utils import *
@@ -28,6 +29,14 @@ def test_encrypt_decrypt_message():
     decrypted_message = encrypted_message.decrypt(keys[0])
     assert messages[0] == decrypted_message
 
+def test_length_after_message_encryption():
+    for i in range(10000):
+        msg = Message("a" * i)
+        encrypted_message = msg.encrypt(keys[0])
+        assert len(encrypted_message) <= msg.approximate_data_len_after_encryption()
+        
+
+
 def test_encrypt_decrypt_header():
     header = Header(10000000000000, 200)
     encrypted_header = header.encrypt(keys[0], referenceIv)
@@ -38,7 +47,8 @@ def test_encrypt_decrypt_header():
 def test_encrypt_decrypt_block():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
-    decrypted_block = encrypted_block.decrypt(keys)
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
     assert block == decrypted_block
 
 
@@ -46,28 +56,28 @@ def test_decrypt_block_one_valid_passphrase():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
     valid_passphrases = [passphrases[0], Passphrase("999"), Passphrase("9888"), Passphrase("666")]
-    valid_keys = [valid_passphrase.derive_key(insecure_kdf, referenceSalt) for valid_passphrase in valid_passphrases]
-    decrypted_block = encrypted_block.decrypt(valid_keys)
-    valid_message = encrypted_block.decrypt_and_show_message_only(valid_keys)
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
+    valid_message = encrypted_block.decrypt_and_show_message_only(passphrases)
     assert valid_message == messages[0].get_data()
 
 def test_decrypt_block_zero_valid_passphrase():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
 
-    valid_passphrases = [Passphrase("123"), Passphrase("999"), Passphrase("9888"), Passphrase("666")]
-    valid_keys = [valid_passphrase.derive_key(insecure_kdf, referenceSalt) for valid_passphrase in valid_passphrases]
-    decrypted_block = encrypted_block.decrypt(valid_keys)
-    valid_message = encrypted_block.decrypt_and_show_message_only(valid_keys)
-    assert valid_message == "Password Incorrect"
+    invalid_passphrases = [Passphrase("123"), Passphrase("999"), Passphrase("9888"), Passphrase("666")]
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(invalid_passphrases)
+    invalid_message = encrypted_block.decrypt_and_show_message_only(invalid_passphrases)
+    assert invalid_message == "Password Incorrect"
 
 def test_decrypt_block_second_valid_passphrase():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
     valid_passphrases = [Passphrase("123"), passphrases[1], Passphrase("9888"), Passphrase("666")]
-    valid_keys = [valid_passphrase.derive_key(insecure_kdf, referenceSalt) for valid_passphrase in valid_passphrases]
-    decrypted_block = encrypted_block.decrypt(valid_keys)
-    valid_message = encrypted_block.decrypt_and_show_message_only(valid_keys)
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(valid_passphrases)
+    valid_message = encrypted_block.decrypt_and_show_message_only(valid_passphrases)
     assert valid_message == messages[1].get_data()
 
 def test_decrypt_block_two_valid_passphrases():
@@ -75,22 +85,36 @@ def test_decrypt_block_two_valid_passphrases():
     encrypted_block = block.encrypt()
 
     valid_passphrases = [Passphrase("123"), passphrases[1], passphrases[2], Passphrase("666")]
-    valid_keys = [valid_passphrase.derive_key(insecure_kdf, referenceSalt) for valid_passphrase in valid_passphrases]
-    decrypted_block = encrypted_block.decrypt(valid_keys)
-    valid_message = encrypted_block.decrypt_and_show_message_only(valid_keys)
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(valid_passphrases)
+    valid_message = encrypted_block.decrypt_and_show_message_only(valid_passphrases)
     assert valid_message == messages[1].get_data()
 
 def test_encrypt_decrypt_block_secure_kdf():
     block = Block(secrets, secure_kdf, 64, 1024, referenceSalt, referenceIv)
     encrypted_block = block.encrypt()
-    decrypted_block = encrypted_block.decrypt(keys)
+    encrypted_block.set_kdf(secure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
     assert block == decrypted_block
 
+def test_very_long_message():
+    very_long_message = Message("a" * MAX_DATA_LEN)
+    pswd_for_long_msg = Passphrase("password for the long message")
+    tmp_messages = [very_long_message, messages[1], messages[2]]
+    tmp_passphrases = [pswd_for_long_msg, passphrases[1], passphrases[2]]
+    tmp_secrets = [Secret(message, passphrase) for message, passphrase in zip(tmp_messages, tmp_passphrases)]
+    tmp_keys = [passphrase.derive_key(insecure_kdf, referenceSalt) for passphrase in tmp_passphrases]
+    block = Block(tmp_secrets, insecure_kdf)
+
+    with pytest.raises(Exception) as e:
+        encrypted_block = block.encrypt()
+        assert str(e.value).endswith("is too long.")
 
 
 if __name__ == "__main__":
     
     test_encrypt_decrypt_message()
+    test_length_after_message_encryption()
     test_encrypt_decrypt_header()
     test_encrypt_decrypt_block()
 
@@ -99,3 +123,4 @@ if __name__ == "__main__":
     test_decrypt_block_second_valid_passphrase()
     test_decrypt_block_two_valid_passphrases()
     test_encrypt_decrypt_block_secure_kdf()
+    test_very_long_message()

@@ -15,7 +15,9 @@ def test_basic_workflow():
     shamir_recover = ShamirBackup(3, 9)
     recovered_encrypted_block = shamir_recover.recover([backups[2], backups[4], backups[6]])
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
-    decrypted_block = encrypted_block.decrypt(keys)
+
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
 
     assert block == decrypted_block
 
@@ -38,7 +40,9 @@ def test_qr_code_workflow():
     assert qr_codes_data[0] == backups[2]
     recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
-    decrypted_block = encrypted_block.decrypt(keys)
+
+    encrypted_block.set_kdf(insecure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
 
     assert block == decrypted_block
 
@@ -62,9 +66,8 @@ def test_qr_code_workflow_secure_kdf():
     assert qr_codes_data[0] == backups[2]
     recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
     encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
-
-    secure_keys = encrypted_block.derive_keys(passphrases, secure_kdf)
-    decrypted_block = encrypted_block.decrypt(secure_keys)
+    encrypted_block.set_kdf(secure_kdf)
+    decrypted_block = encrypted_block.decrypt(passphrases)
 
     assert block == decrypted_block
 

@@ -35,6 +35,15 @@ class Message:
     def get_data(self):
         return self.message
 
+    def approximate_data_len_after_encryption(self):
+        # Calculate data length after encryption without really encrypt the data
+        result = len(self.message)
+        
+        result += GCM_IV_SIZE
+        result += AUTH_TAG_SIZE
+        result = (1 + result // AES.block_size) * AES.block_size
+        return result
+
 
 class EncryptedMessage:
     def __init__(self, data_enciphered, data_iv, data_auth_tag):
@@ -188,16 +197,16 @@ class Block:
         max_msg_len = MAX_DATA_LEN // len(self.secrets)
         total_msg_len = 0
         for secret in self.secrets:
-            msg_len = len(secret.message)
+            msg_len = secret.message.approximate_data_len_after_encryption()
             if msg_len >= max_msg_len:
-                raise Exception(f"The secret {secret} is too long")
+                raise Exception(f"The secret {str(secret)[:100]}... is too long.")
             total_msg_len += msg_len
 
-        # If the user set a limit of the header size, make sure it can be divided by 8
+        # If the user set a limit of the header size, make sure it can be divided by 16
         # and can hold the number of secrets
         if self.headers_len:
-            if self.headers_len % 8 != 0:
-                raise Exception(f"The length of headers should be divided by 8")
+            if self.headers_len % AES.block_size != 0:
+                raise Exception(f"The length of headers should be divided by {AES.block_size}")
 
             max_headers_n = self.headers_len // HEADER_SIZE
             if len(self.secrets) > max_headers_n:
@@ -205,18 +214,17 @@ class Block:
         else:
             self.headers_len = len(self.secrets) * HEADER_SIZE
 
-        # If the user set a limit of data size, make sure it can be divided by 8
+        # If the user set a limit of data size, make sure it can be divided by 16
         # and can hold the secrets
         if self.data_len:
-            if self.data_len % 8 != 0:
-                raise Exception(f"The length of data should be divided by 8")
+            if self.data_len % AES.block_size != 0:
+                raise Exception(f"The length of data should be divided by {AES.block_size}")
             if total_msg_len > self.data_len:
                 raise Exception(f"Too long total secret length for data length {self.data_len}")
         else:
             # data length can be changed during encryption, set a default value
-            self.data_len = total_msg_len + len(self.secrets) * (GCM_IV_SIZE + AUTH_TAG_SIZE)
-            self.data_len = int(self.data_len * 1.5)
-            self.data_len = (1 + self.data_len // 8) * 8
+            self.data_len = total_msg_len
+            
             if self.data_len >= MAX_DATA_LEN:
                 raise Exception(f"Total secret length is too long.")
 
@@ -236,8 +244,6 @@ class Block:
         
         return all([s1.message == s2.message] for s1, s2 in zip(self.secrets, other.secrets))
 
-    def _derive_keys(self):
-        self.keys = [secret.passphrase.derive_key(self.kdf, self.salt) for secret in self.secrets]
 
     def encrypt(self):
         if not self.is_valid():
@@ -245,7 +251,8 @@ class Block:
 
         # step 1: dervie keys 
         if not self.keys:
-            self._derive_keys()
+            passphrases = [s.passphrase for s in self.secrets]
+            self.keys = derive_keys(self.kdf, self.salt, passphrases)
 
         # step 2: encrypt data/messages
         messages = [secret.message for secret in self.secrets]
@@ -259,7 +266,6 @@ class Block:
         for data_length in data_lengths[:-1]:
             tmp_sum += data_length
             data_starts.append(tmp_sum)
-        
 
         # step 4: calcualte headers
         headers = [Header(data_start, len(data_buffer)) for data_start, data_buffer in zip(data_starts, data_buffers)]
@@ -283,13 +289,14 @@ class Block:
         result += padding
         return result
 
+
 class EncryptedBlock:
     def __init__(self, salt, iv, headers, data):
         self.salt = salt
         self.iv = iv
         self.headers = headers
         self.data = data
-        
+        self.keys = []
 
     def __str__(self):
         result = "------Encrypted Block start------\n"
@@ -300,41 +307,42 @@ class EncryptedBlock:
     def __eq__(self, other):
         return self.salt == other.salt and self.iv == other.iv and self.headers == other.headers and self.data == other.data
 
-    def derive_keys(self, passphrases, kdf):
-        keys = [p.derive_key(kdf, self.salt) for p in passphrases]
-        return keys
+    def set_kdf(self, kdf):
+        self.kdf = kdf
     
-    def decrypt(self, keys):
-        decrypted_headers = self._decrypt_headers(keys)
-        secrets = self._decrypt_data(keys, decrypted_headers)
+    def decrypt(self, passphrases):
+        assert self.kdf
+        if not self.keys:
+            self.keys = derive_keys(self.kdf, self.salt, passphrases)
+        decrypted_headers = self._decrypt_headers()
+        secrets = self._decrypt_data(decrypted_headers)
         valid_secrets = [secret for secret in secrets if secret.is_valid()]
         decrypted_block = Block(valid_secrets, None, len(self.headers), len(self.data), self.salt, self.iv)
 
         return decrypted_block
 
-
-    def decrypt_and_show_message_only(self, keys):
-        decrypted_block = self.decrypt(keys)
-
+    def decrypt_and_show_message_only(self, passphrases):
+        decrypted_block = self.decrypt(passphrases)
         return decrypted_block.secrets[0].get_message() if decrypted_block.secrets else "Password Incorrect"
 
-    def _decrypt_headers(self, keys):
-
+    def _decrypt_headers(self):
+        assert self.keys
         headers = self.headers
         assert len(headers) % AES.block_size == 0
         n = len(headers) // AES.block_size
 
         headers_buffers = [headers[i*AES.block_size:(i+1)*AES.block_size] for i in range(n)]
         encrypted_headers = [EncryptedHeader(header_buffer) for header_buffer in headers_buffers]
-        decrypted_headers = [encrypted_header.decrypt(key, self.iv) for key, encrypted_header in zip(keys, encrypted_headers)]
+        decrypted_headers = [encrypted_header.decrypt(key, self.iv) for key, encrypted_header in zip(self.keys, encrypted_headers)]
 
         return decrypted_headers
 
-    def _decrypt_data(self, keys, decrypted_headers):
+    def _decrypt_data(self, decrypted_headers):
+        assert self.keys
         headers = decrypted_headers
         data_buffers_list = [self.data[header.data_start:header.data_start+header.data_len] for header in headers]
         encrypted_messages_list = [self._parse_data_buffer_item(item) for item in data_buffers_list]
-        decrypted_messages_list = [encrypted_message.decrypt(key) for encrypted_message, key in zip(encrypted_messages_list, keys)]
+        decrypted_messages_list = [encrypted_message.decrypt(key) for encrypted_message, key in zip(encrypted_messages_list, self.keys)]
 
         placeholder_passphrase = Passphrase("***")
         decrypted_secrets = [Secret(message, placeholder_passphrase) for message in decrypted_messages_list]
@@ -392,3 +400,6 @@ def parse_compact_encrypted_block(compact_encrypted_block):
 
     return recovered_encrypted_block
         
+def derive_keys(kdf, salt, passphrases:list[Passphrase]):
+    keys = [p.derive_key(kdf, salt) for p in passphrases]
+    return keys
