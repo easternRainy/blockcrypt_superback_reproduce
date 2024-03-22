@@ -17,6 +17,7 @@ HEADER_SIZE = 16
 ARGON_SPLIT = "$"
 MAX_DATA_LEN = 2**32
 INT_PAD_SIZE = 8 # bytes
+CONTAINER_SIZE = 256
 
 def secure_kdf(passphrase, salt):
     # ph = PasswordHasher(time_cost=5, memory_cost=2**20)

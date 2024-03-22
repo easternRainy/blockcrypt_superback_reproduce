@@ -1,6 +1,7 @@
 from blockcrypt import *
 from blockcrypt_test import *
-import qrcode
+from shamir_backup import *
+from qr_code import *
 import argparse
 
 """
@@ -29,7 +30,7 @@ python3 driver.py decrypt \
 def main():
     parser = argparse.ArgumentParser(description="Backup your most important secrets with plausible deniability..")
     parser.add_argument("command", choices=["encrypt", "decrypt"], help="Command to execute.")
-    parser.add_argument("--kdf", help="Key Derivation Function.")
+    parser.add_argument("--kdf", type=str, help="Key Derivation Function.")
     parser.add_argument("--time_cost", type=int, help="Time cost for the KDF.")
     parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
     parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
@@ -41,7 +42,24 @@ def main():
     parser.add_argument("--qrcode", action="append", help="Paths to QR code images for decryption.")
 
     args = parser.parse_args()
-    print(args.message)
+
+    if args.command == "encrypt":
+        kdf = secure_kdf
+        assert len(args.message) == len(args.passphrase)
+        messages = [Message(m) for m in args.message]
+        passphrases = [Passphrase(p) for p in args.passphrase]
+        secrets = [Secret(m, p) for m, p in zip(messages, passphrases)]
+        block = Block(secrets, kdf)
+        encrypted_block = block.encrypt()
+        shamir_backup = ShamirBackup(args.threshold, args.total_split)
+        shamir_backup.load_data(encrypted_block.get_encrypted_data())
+        backups = shamir_backup.backup()
+        for i, backup in enumerate(backups):
+            generate_qr_code(backup, save_path=f"assets/qr_code_{i}.png")
+
+        print("QR Code generated")
+            
+
 
 
 if __name__ == "__main__":
