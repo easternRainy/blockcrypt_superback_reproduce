@@ -3,7 +3,7 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.SecretSharing import Shamir
 from Crypto.Util.Padding import pad, unpad
-from crypto import *
+from core.crypto import *
 
 class ShamirBackup:
     def __init__(self, n, m):

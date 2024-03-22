@@ -1,4 +1,4 @@
-from shamir_backup import *
+from core.shamir_backup import *
 
 def test_shamir_backup_basic():
     shamir_backup = ShamirBackup(5, 9)

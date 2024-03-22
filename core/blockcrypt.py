@@ -4,7 +4,7 @@ from Crypto.Util.Padding import pad, unpad
 import math
 import qrcode
 import base64
-from crypto import *
+from core.crypto import *
 
 
 class Message:

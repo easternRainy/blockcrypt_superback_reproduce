@@ -1,7 +1,7 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import base64
-from test_utils import *
+from core.test_utils import *
 
 # some constants
 B64_PAD_UNIT = 4

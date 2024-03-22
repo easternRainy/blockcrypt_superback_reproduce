@@ -1,11 +1,11 @@
-from blockcrypt import *
+from core.blockcrypt import *
 import hmac
 import hashlib
 import base64
 import pytest
 
-from crypto import *
-from test_utils import *
+from core.crypto import *
+from core.test_utils import *
 
 messages = [
     Message("trust vast puppy supreme public course output august glimpse reunion kite rebel virus tail pass enhance divorce whip edit skill dismiss alpha divert ketchup"),

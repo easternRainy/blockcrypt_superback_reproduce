@@ -1,7 +1,7 @@
-from blockcrypt import *
-from blockcrypt_test import *
-from shamir_backup import *
-from qr_code import *
+from core.blockcrypt import *
+from core.blockcrypt_test import *
+from core.shamir_backup import *
+from core.qr_code import *
 import argparse
 
 """
