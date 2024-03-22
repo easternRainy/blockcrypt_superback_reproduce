@@ -27,45 +27,21 @@ python3 driver.py decrypt \
 """
 
 def main():
-    secrets = []
+    parser = argparse.ArgumentParser(description="Backup your most important secrets with plausible deniability..")
+    parser.add_argument("command", choices=["encrypt", "decrypt"], help="Command to execute.")
+    parser.add_argument("--kdf", help="Key Derivation Function.")
+    parser.add_argument("--time_cost", type=int, help="Time cost for the KDF.")
+    parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
+    parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
+    parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
+    parser.add_argument("--passphrase", help="Passphrase for encryption or decryption.")
+    parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
+    parser.add_argument("--threshold", type=int, help="Threshold for operation.")
+    parser.add_argument("--total_split", type=int, help="Total number of splits.")
+    parser.add_argument("--qrcode", action="append", help="Paths to QR code images for decryption.")
 
-    while True:
-        print("input message")
-        message = input()
-
-        if message == "exit":
-            break
-
-        print("input password")
-        passphrase = input()
-
-        secret = Secret(Message(message), Passphrase(passphrase))
-        secrets.append(secret)
-
-    header_len = AES.block_size * len(secrets)
-    data_len = 4096
-    block = Block(secrets, insecure_kdf, header_len, data_len, referenceSalt, referenceIv)
-    encrypted_block = block.encrypt()
-
-    # encrypted_block.generate_qrcode()
-
-    compact = encrypted_block._compact()
-
-    recovered = parse_compact_encrypted_block(compact)
-
-    with open("encrypted_block.txt", "w") as f:
-        f.write(compact.hex())
-
-    # print("input password to show message")
-
-    # passphrase = input()
-    # valid_passphrases = [Passphrase(passphrase)] * len(secrets)
-    # valid_keys = [valid_passphrase.derive_key(insecure_kdf, referenceSalt) for valid_passphrase in valid_passphrases]
-
-    # valid_message = recovered.decrypt_and_show_message_only(valid_keys)
-
-    # print("The message is:")
-    # print(valid_message)
+    args = parser.parse_args()
+    print(args.message)
 
 
 if __name__ == "__main__":
