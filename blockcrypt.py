@@ -185,7 +185,7 @@ class Block:
         # All secrets are valid.
         for secret in self.secrets:
             if not secret.is_valid():
-                raise Exception(f"The secret {secret}" is not valid)
+                raise Exception(f"The secret {secret} is not valid.")
 
         # Each header is in the format of start_position (8 bytes) | length (8 bytes).
         # The maximum of start_position is 2^64-1, so is maximum length.
@@ -359,7 +359,7 @@ class EncryptedBlock:
 
     def _compact(self):
         """
-        Salt 16 bytes | IV 16 bytes | Header number 16 bytes | headers (each header is AES.block_size size) | data
+        salt (16 bytes) | iv (16 bytes) | header number (16 bytes) | headers (16 bytes) | data
         """
         header_len = len(self.headers) // AES.block_size
         padded_header_len = header_len.to_bytes(INT_PAD_SIZE, byteorder="big")
@@ -403,3 +403,4 @@ def parse_compact_encrypted_block(compact_encrypted_block):
 def derive_keys(kdf, salt, passphrases:list[Passphrase]):
     keys = [p.derive_key(kdf, salt) for p in passphrases]
     return keys
+

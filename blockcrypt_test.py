@@ -34,7 +34,6 @@ def test_length_after_message_encryption():
         msg = Message("a" * i)
         encrypted_message = msg.encrypt(keys[0])
         assert len(encrypted_message) <= msg.approximate_data_len_after_encryption()
-        
 
 
 def test_encrypt_decrypt_header():
@@ -42,6 +41,35 @@ def test_encrypt_decrypt_header():
     encrypted_header = header.encrypt(keys[0], referenceIv)
     decrypted_header = encrypted_header.decrypt(keys[0], referenceIv)
     assert header == decrypted_header
+
+
+def test_invalid_blocks():
+    # no secret
+    block = Block([], insecure_kdf)
+    with pytest.raises(Exception) as e:
+        encrypted_block = block.encrypt()
+        assert str(e.value).endswith("There is no secret.")
+    
+    # secret is invalid
+    message = Message("")
+    passphrase = Passphrase("abc")
+    secret = Secret(message, passphrase)
+    block = Block([secret], insecure_kdf)
+    with pytest.raises(Exception) as e:
+        encrypted_block = block.encrypt()
+        assert str(e.value).endswith(f"The secret {secret} is not valid.")
+
+    # invalid header len
+    block = Block(secrets, insecure_kdf, 7)
+    with pytest.raises(Exception) as e:
+        encrypted_block = block.encrypt()
+        assert "headers should be divided" in str(e.value)
+
+    # invalid data len
+    block = Block(secrets, insecure_kdf, 200)
+    with pytest.raises(Exception) as e:
+        encrypted_block = block.encrypt()
+        assert "headers should be divided" in str(e.value)
 
 
 def test_encrypt_decrypt_block():
@@ -111,13 +139,12 @@ def test_very_long_message():
         assert str(e.value).endswith("is too long.")
 
 
-if __name__ == "__main__":
-    
+if __name__ == "__main__":    
     test_encrypt_decrypt_message()
     test_length_after_message_encryption()
     test_encrypt_decrypt_header()
+    test_invalid_blocks()
     test_encrypt_decrypt_block()
-
     test_decrypt_block_one_valid_passphrase()
     test_decrypt_block_zero_valid_passphrase()
     test_decrypt_block_second_valid_passphrase()
