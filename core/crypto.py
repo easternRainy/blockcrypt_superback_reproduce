@@ -1,7 +1,6 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import base64
-from core.test_utils import *
 
 # some constants
 B64_PAD_UNIT = 4
@@ -42,4 +41,4 @@ class KDF:
 
 
 if __name__ == "__main__":
-    secure_kdf("abcdef", referenceSalt)
+    secure_kdf("abcdef", os.urandom(16))
