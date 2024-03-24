@@ -1,7 +1,7 @@
-from core.blockcrypt import *
-from core.blockcrypt_test import *
-from core.shamir_backup import *
-from core.qr_code import *
+from blockcrypt import *
+from blockcrypt_test import *
+from shamir_backup import *
+from qr_code import *
 import argparse
 
 """
@@ -35,7 +35,9 @@ def main():
     parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
     parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
     parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
-    parser.add_argument("--passphrase-flag", action="append", choices=["userinput", "eff"], help="Passphrase for encryption or decryption.")
+    # parser.add_argument("--passphrase-flag", action="append", choices=["userinput", "eff"], help="Passphrase for encryption or decryption.")
+    parser.add_argument("--passphrase", action="append", help="Passphrase for encryption or decryption.")
+
     parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
     parser.add_argument("--threshold", type=int, help="Threshold for operation.")
     parser.add_argument("--total_split", type=int, help="Total number of splits.")
