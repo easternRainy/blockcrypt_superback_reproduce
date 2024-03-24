@@ -3,7 +3,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import math
 import base64
-from crypto import *
+from blockcrypt_core.crypto import *
 
 
 class Message:

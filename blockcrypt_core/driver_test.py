@@ -1,9 +1,9 @@
-from blockcrypt import *
-from shamir_backup import *
-from test_utils import *
-from blockcrypt_test import messages, passphrases, secrets, keys
-from qr_code import *
-from crypto import *
+from blockcrypt_core.blockcrypt import *
+from blockcrypt_core.shamir_backup import *
+from blockcrypt_core.test_utils import *
+from blockcrypt_core.blockcrypt_test import messages, passphrases, secrets, keys
+from blockcrypt_core.qr_code import *
+from blockcrypt_core.crypto import *
 
 def test_basic_workflow():
     block = Block(secrets, insecure_kdf, 64, 1024, referenceSalt, referenceIv)
