@@ -186,6 +186,17 @@ class Block:
             if not secret.is_valid():
                 raise Exception(f"The secret {secret} is not valid.")
 
+        # There is no repeated passphrase
+        all_passphrases = [s.get_passphrase() for s in self.secrets]
+        if len(all_passphrases) > len(set(all_passphrases)):
+            raise Exception(f"There are repeated passphrases")
+
+        # All passwords are strong
+        for p in all_passphrases:
+            if not is_strong_password(p):
+                raise Exception(f"The password {p} is weak.")
+
+
         # Each header is in the format of start_position (8 bytes) | length (8 bytes).
         # The maximum of start_position is 2^64-1, so is maximum length.
         # If the first header is (0, 2^64-1) then there should be no next header.
