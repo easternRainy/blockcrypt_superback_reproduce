@@ -9,28 +9,6 @@ import logging
 import getpass
 from collections import deque
 
-"""
-python3 driver.py encrypt \
---kdf "argon2id" \
---time_cost 5 \
---memory_cost 7 \
---parallelism 4 \
---message "message 1" \
---passphrase "passphrase 1" \
---mesasge "message 2" \
---auto_eff 5 \
---message "message 3" \
---auto eff 7 \
---threshold 3 \
---total_split 9
-
-python3 driver.py decrypt \
---passphrase "passphrase 1"
---qrcode "path/to/qr1.png"
---qrcode "path/to/qr2.png"
---qrcode "path/to/qr3.png"
-
-"""
 
 class CliDriver:
 
@@ -71,9 +49,19 @@ class CliDriver:
 
     def parse_args_and_verify(self):
         args = self.parser.parse_args()
-        assert len(args.message) == len(args.pass_mode)
-        assert 0 < args.threshold < args.total_split
-        assert args.n_words >= 5
+
+        if args.command == "encrypt":
+            assert len(args.message) == len(args.pass_mode)
+            assert 0 < args.threshold < args.total_split
+            assert args.n_words >= 5
+
+            n = sum([1 if m == "terminal" else 0 for m in args.pass_mode])
+            if  n > 0 and len(args.passphrase) != n:
+                raise Exception("Not enough passphrases provided through terminal.")
+
+        if args.command == "decrypt":
+            if len(args.passphrase) > 1:
+                raise Exception("Too many passphrases in decrypt mode.")
 
         if args.kdf == "argon2id":
             assert args.time_cost > 0 and args.memory_cost > 0 and args.parallelism > 0
@@ -149,13 +137,16 @@ def main():
     if args.command == "decrypt":
         kdf = secure_kdf
         passphrases = [Passphrase(p) for p in args.passphrase]
-        
+
         n_qr = len(args.qrcode)
         shamir_recover = ShamirBackup(n_qr, n_qr)
 
         qr_codes_data = [read_qr_code(p) for p in args.qrcode]
 
-        recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
+        try:
+            recovered_encrypted_block = shamir_recover.recover(qr_codes_data)
+        except:
+            raise Exception("The QR codes provided are not enough to decrypt the message.")
         encrypted_block = parse_compact_encrypted_block(recovered_encrypted_block)
         encrypted_block.set_kdf(secure_kdf)
         decrypted_message = encrypted_block.decrypt_for_user(passphrases[0])
