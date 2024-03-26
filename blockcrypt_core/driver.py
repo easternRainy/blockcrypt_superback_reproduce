@@ -3,6 +3,7 @@ from blockcrypt_core.blockcrypt_test import *
 from blockcrypt_core.shamir_backup import *
 from blockcrypt_core.qr_code import *
 import argparse
+import os
 
 """
 python3 driver.py encrypt \
@@ -27,39 +28,87 @@ python3 driver.py decrypt \
 
 """
 
+class CliDriver:
+
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description="Backup your most important secrets with plausible deniability..")
+        self.add_arguments()
+
+    def add_arguments(self):
+        self.parser.add_argument("command", choices=["encrypt", "decrypt"], help="Command to execute.")
+        self.parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
+        self.parser.add_argument("--passphrase", action="append", choices=["userinput", "eff"], help="Passphrase for encryption or decryption.")
+        # self.parser.add_argument("--passphrase", action="append", help="Passphrase for encryption or decryption.")
+
+        # self.parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
+        self.parser.add_argument("--save_path", type=str, help="Paths to save QR code images when encryption.")
+        self.parser.add_argument("--qrcode", action="append", help="Paths to QR code images for decryption.")
+
+        self._add_kdf_args()
+        self._add_shamir_args()
+
+    def _add_kdf_args(self):
+        self._add_argon2id_args()
+
+    def _add_argon2id_args(self):
+        self.parser.add_argument("--kdf", type=str, default="argon2id", choices=["argon2id"], help="Key Derivation Function.")
+        self.parser.add_argument("--time_cost", type=int, default=3, help="Time cost for the KDF.")
+        self.parser.add_argument("--memory_cost", type=int, default=65536, help="Memory cost for the KDF.")
+        self.parser.add_argument("--parallelism", type=int, default=4, help="Parallelism factor for the KDF.")
+
+    def _add_shamir_args(self):
+        self.parser.add_argument("--threshold", type=int, help="Threshold for operation.")
+        self.parser.add_argument("--total_split", type=int, help="Total number of splits.")
+
+
+    def parse_args_and_verify(self):
+        args = self.parser.parse_args()
+        assert len(args.message) == len(args.passphrase)
+        assert 0 < args.threshold < args.total_split
+
+        if args.kdf == "argon2id":
+            assert args.time_cost > 0 and args.memory_cost > 0 and args.parallelism > 0
+
+        return args
+
+
+def create_secrets_from_args(args):
+
+    secrets = []
+    for m, p_mode in zip(args.message, args.passphrase):
+        if p_mode == "userinput":
+            print(f"Please enter the passphrase for {m}")
+            p = input()
+            print(p)
+
+        elif p_mode == "eff":
+            p = os.urandom(16).hex()
+            print(f"Here is the passphrase for {m}: {p}")
+
+        message = Message(m)
+        passphrase = Passphrase(p)
+        secret = Secret(message, passphrase)
+        secrets.append(secret)
+
+    return secrets
+
+ 
+
 def main():
-    parser = argparse.ArgumentParser(description="Backup your most important secrets with plausible deniability..")
-    parser.add_argument("command", choices=["encrypt", "decrypt"], help="Command to execute.")
-    parser.add_argument("--kdf", type=str, help="Key Derivation Function.")
-    parser.add_argument("--time_cost", type=int, help="Time cost for the KDF.")
-    parser.add_argument("--memory_cost", type=int, help="Memory cost for the KDF.")
-    parser.add_argument("--parallelism", type=int, help="Parallelism factor for the KDF.")
-    parser.add_argument("--message", action="append", help="Messages to encrypt or decrypt.")
-    # parser.add_argument("--passphrase-flag", action="append", choices=["userinput", "eff"], help="Passphrase for encryption or decryption.")
-    parser.add_argument("--passphrase", action="append", help="Passphrase for encryption or decryption.")
+    cli = CliDriver()
+    args = cli.parse_args_and_verify()
 
-    parser.add_argument("--auto_eff", type=int, help="Auto efficiency setting.")
-    parser.add_argument("--threshold", type=int, help="Threshold for operation.")
-    parser.add_argument("--total_split", type=int, help="Total number of splits.")
-    parser.add_argument("--qrcode", action="append", help="Paths to QR code images for decryption.")
-
-    args = parser.parse_args()
 
     if args.command == "encrypt":
-        print(args.passphrase_flag)
-        input()
         kdf = secure_kdf
-        assert len(args.message) == len(args.passphrase)
-        messages = [Message(m) for m in args.message]
-        passphrases = [Passphrase(p) for p in args.passphrase]
-        secrets = [Secret(m, p) for m, p in zip(messages, passphrases)]
+        secrets = create_secrets_from_args(args)
         block = Block(secrets, kdf)
         encrypted_block = block.encrypt()
         shamir_backup = ShamirBackup(args.threshold, args.total_split)
         shamir_backup.load_data(encrypted_block.get_encrypted_data())
         backups = shamir_backup.backup()
         for i, backup in enumerate(backups):
-            generate_qr_code(backup, save_path=f"assets/qr_code_{i}.png")
+            generate_qr_code(backup, save_path=f"{args.save_path}/qr_code_{i}.png")
 
         print("QR Code generated")
 
