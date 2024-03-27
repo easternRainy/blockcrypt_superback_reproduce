@@ -21,7 +21,7 @@ ARGON_SPLIT = "$"
 MAX_DATA_LEN = 2**32
 INT_PAD_SIZE = 8 # bytes
 CONTAINER_SIZE = 256
-LEAST_PASSWORD_STRENGTH = 0.7
+LEAST_PASSWORD_ENTROPY = 0.7
 SECONDS_PER_YEAR = 365 * 24 * 3600
 MIN_YEAR_CRACK = 100
 
@@ -69,7 +69,7 @@ def generate_random_eff_passphrase(n, sep=" "):
 def is_strong_password(password):
     # 1. Use password_strength
     stats = PasswordStats(password)
-    if stats.strength() < 0.7:
+    if stats.strength() < LEAST_PASSWORD_ENTROPY:
         return False
 
     # 2. Use zxcvbn

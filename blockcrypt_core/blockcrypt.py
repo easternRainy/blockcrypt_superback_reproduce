@@ -117,7 +117,6 @@ class Header:
         return self.data_start == other.data_start and self.data_len == other.data_len
 
 
-
 class EncryptedHeader:
     def __init__(self, header_enciphered):
         self.header_enciphered = header_enciphered
@@ -386,6 +385,7 @@ class EncryptedBlock:
 
     def get_salt(self):
         return self.salt
+
 
 class EncryptedBlockContainer:
     # kdf and parameters 256 bytes | encrypted block (size varies)
