@@ -32,12 +32,16 @@ def secure_kdf(passphrase, salt):
     hash_bytes = argon_hash_str_to_bytes(hash_str)
     return hash_bytes
     
+def b64_pad_multiple_four(b64_str):
+    missing_padding = len(b64_str) % B64_PAD_UNIT
+    if missing_padding:
+        b64_str += B64_PAD * (B64_PAD_UNIT - missing_padding)
+
+    return b64_str
 
 def argon_hash_str_to_bytes(hash_str):
     hash_b64 = hash_str.split(ARGON_SPLIT)[-1]
-    missing_padding = len(hash_b64) % B64_PAD_UNIT
-    if missing_padding:
-        hash_b64 += B64_PAD * (B64_PAD_UNIT - missing_padding)
+    hash_b64 = b64_pad_multiple_four(hash_b64)
     hash_bytes = base64.b64decode(hash_b64)
 
     return hash_bytes
